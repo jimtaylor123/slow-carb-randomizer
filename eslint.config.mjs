@@ -12,7 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Capacitor copies the static export into the native projects:
+    "ios/**/public/**",
+    "android/**/public/**",
   ]),
+  {
+    files: ["src/hooks/useHydrated.ts"],
+    rules: {
+      // Reading localStorage must be deferred until after hydration so the
+      // static-export SSR HTML and the client render stay in sync.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

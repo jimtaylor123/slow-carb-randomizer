@@ -1,0 +1,133 @@
+name: feature_delivery_pipeline_with_isolation
+
+trigger:
+  type: github_issue
+  input: ${GITHUB_ISSUE}
+
+steps:
+
+  - id: setup_workspace
+    agent: orchestrator
+    prompt: |
+      Create an isolated work environment for this issue.
+
+      REQUIRED ACTIONS:
+      1. Ensure you have the latest version of main branch and create a git worktree for this issue from it as a *sibling directory*:
+         git worktree add ../slowcarbrandomizer-${GITHUB_ISSUE} origin/main
+
+      2. Create scratch directory inside worktree:
+         ../slowcarbrandomizer-${GITHUB_ISSUE}/.agents/
+
+      3. Inside scratch directory create:
+         - todo.md
+         - plan.md
+         - notes.md
+         - browser_logs.md
+
+      4. Determine an available port for dev server:
+         - start from 3000
+         - check ports currently in use
+         - assign first free port
+         - write to:
+           ../slowcarbrandomizer-${GITHUB_ISSUE}/.agents/port.txt
+
+      5. Start dev server in that worktree using assigned port.
+
+      OUTPUT:
+      - worktree path
+      - assigned port
+      - dev server URL
+
+  - id: analysis
+    agent: implementer
+    depends_on: setup_workspace
+    prompt: |
+      Read GitHub issue and codebase in the worktree.
+
+      Write to:
+      .agents/todo.md
+      .agents/plan.md
+
+      Ask clarifying questions if required.
+
+  - id: planning_approval_gate
+    agent: implementer
+    depends_on: analysis
+    prompt: |
+      Present final implementation plan.
+
+      Do NOT proceed until explicitly approved.
+
+      Save final plan to:
+      .agents/plan.md
+
+  - id: implementation
+    agent: implementer
+    depends_on: planning_approval_gate
+    prompt: |
+      Implement the approved plan in small commits.
+
+      Keep all work inside this worktree only.
+
+      Update:
+      - .agents/todo.md (progress tracking)
+      - .agents/notes.md (decisions made)
+
+  - id: ai_review
+    agent: reviewer
+    depends_on: implementation
+    prompt: |
+      Review the diff critically.
+
+      Focus:
+      - correctness
+      - edge cases
+      - architecture consistency
+      - test coverage
+
+      Output issues to:
+      .agents/review.md
+
+  - id: fix_loop
+    agent: implementer
+    depends_on: ai_review
+    loop: 2
+    prompt: |
+      Fix ONLY issues listed in .agents/review.md.
+
+      Do not introduce new features.
+
+  - id: test_and_browser_validation
+    agent: tester
+    depends_on: fix_loop
+    prompt: |
+      Run:
+      - npm run lint
+      - npm run typecheck
+      - npm run test
+      - npm run build
+
+      Then run browser validation using:
+      http://localhost:$(cat .agents/port.txt)
+
+      Record results in:
+      .agents/browser_logs.md
+
+  - id: final_fix
+    agent: implementer
+    depends_on: test_and_browser_validation
+    prompt: |
+      Fix only failing tests or browser issues.
+
+  - id: pr_creation
+    agent: implementer
+    prompt: |
+      Push branch.
+
+      Create GitHub PR including:
+      - summary
+      - test results
+      - known limitations
+      - link to GitHub issue
+      - link to worktree dev URL (if relevant)
+      - assign to jimtaylor123 and request a review from jimtaylor123

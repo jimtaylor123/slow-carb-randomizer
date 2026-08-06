@@ -1,69 +1,146 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useCallback, useState } from "react";
+import { FOODS, type Meal, type MealOptions, DEFAULT_MEAL_OPTIONS } from "@/lib/foods";
+import { generateMeal } from "@/lib/randomizer";
+import * as storage from "@/lib/storage";
+import { useShake } from "@/hooks/useShake";
+import { useHydrated } from "@/hooks/useHydrated";
+import MealCard from "@/components/MealCard";
+import BottomNav from "@/components/BottomNav";
+
+interface HydratedState {
+  settings: MealOptions;
+  history: string[];
+  saved: Meal[];
+}
+
+interface LocalState {
+  history: string[];
+  saved: Meal[];
+}
+
+const EMPTY_STATE: HydratedState = {
+  settings: DEFAULT_MEAL_OPTIONS,
+  history: [],
+  saved: [],
+};
+
+export default function Generator() {
+  const [hydrated, mounted] = useHydrated(
+    () => ({
+      settings: storage.loadSettings(),
+      history: storage.loadHistory(),
+      saved: storage.loadSavedMeals(),
+    }),
+    EMPTY_STATE,
+  );
+
+  const [local, setLocal] = useState<LocalState | null>(null);
+  const [meal, setMeal] = useState<Meal | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  // Populate local state once the real stored values are available.
+  if (mounted && local === null) {
+    setLocal({ history: hydrated.history, saved: hydrated.saved });
+  }
+
+  const settings = hydrated.settings;
+  const history = local?.history ?? [];
+  const savedMeals = local?.saved ?? [];
+
+  // Generate the first meal once the real settings are available.
+  if (mounted && meal === null) {
+    setMeal(generateMeal({ foods: FOODS, options: settings, history }));
+  }
+
+  const reroll = useCallback(() => {
+    if (!local) return;
+    const next = generateMeal({
+      foods: FOODS,
+      options: settings,
+      history: [meal ? meal.id : "", ...local.history],
+    });
+    setMeal(next);
+    setLocal({ ...local, history: storage.pushHistory(local.history, next.id) });
+  }, [settings, meal, local]);
+
+  const { trigger } = useShake(reroll, mounted);
+
+  const toggleSave = useCallback(() => {
+    if (!meal || !local) return;
+    const next = storage.toggleSavedMeal(local.saved, meal);
+    storage.saveSavedMeals(next);
+    setLocal({ ...local, saved: next });
+    setSavedFlash(true);
+    window.setTimeout(() => setSavedFlash(false), 800);
+  }, [meal, local]);
+
+  const savedIds = savedMeals.map((m) => m.id);
+  const isSaved = meal !== null && savedIds.includes(meal.id);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="flex min-h-dvh flex-col bg-zinc-950 text-zinc-100">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pb-8 pt-6">
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">
+              Slow Carb<span className="text-emerald-400"> Randomizer</span>
+            </h1>
+            <p className="text-xs text-zinc-500">Shake to cook something new</p>
+          </div>
+          {mounted && meal && settings.showCalories && (
+            <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm font-semibold tabular-nums text-emerald-300">
+              ≈ {meal.calories} kcal
+            </div>
+          )}
+        </header>
+
+        <section className="flex flex-1 flex-col items-center justify-center gap-6">
+          {!mounted || !meal ? (
+            <div className="h-64 w-full animate-pulse rounded-2xl bg-zinc-900" />
+          ) : (
+            <MealCard meal={meal} showCalories={settings.showCalories} />
+          )}
+
+          <div className="flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={trigger}
+              className="flex h-28 w-28 items-center justify-center rounded-full bg-emerald-500 text-5xl font-black text-zinc-950 shadow-lg shadow-emerald-500/30 transition-transform active:scale-90"
+              aria-label="Generate a new meal (or shake your device)"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              🍲
+            </button>
+            <p className="text-xs text-zinc-500">
+              Shake your device or tap the pot to reroll
+            </p>
+          </div>
+
+          {mounted && meal && (
+            <button
+              type="button"
+              onClick={toggleSave}
+              className={`flex w-full max-w-xs items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                isSaved
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                  : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700"
+              }`}
             >
-              Learning
-            </a>{" "}
-            center.
+              {isSaved ? "Saved" : "Like & save"}
+              <span aria-hidden>{isSaved ? "❤️" : "🤍"}</span>
+            </button>
+          )}
+        </section>
+
+        {savedFlash && (
+          <p className="text-center text-xs text-emerald-400">
+            Saved to your meals 💚
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        )}
       </main>
+
+      <BottomNav savedCount={savedMeals.length} />
     </div>
   );
 }

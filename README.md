@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Slow Carb Randomizer
 
-## Getting Started
+A mobile-first, fully offline app that generates random slow-carb meals by shaking your phone.
 
-First, run the development server:
+Built on the **Slow-Carb Diet** (Tim Ferriss, *The 4-Hour Body*): every meal is one **protein** + one **legume** + one **vegetable**, with optional **fermented foods**, **herbs & spices** and **healthy fats** mixed in. Shake the device (or tap the pot) to roll a new combo, like and save the ones you love, and get a rough calorie estimate per meal.
+
+**No backend. No database. No accounts.** All data lives on your device.
+
+## Features
+
+- **Shake to reroll** — device motion via Capacitor on native, `DeviceMotion` on the web, with a tap-to-roll fallback (works on desktop/simulators)
+- **Curated ingredient pools** — proteins, legumes, vegetables + optional fermented, herbs/spices, fats (all slow-carb compliant)
+- **Smart randomization** — Fisher–Yates picks with no immediate repeats against recent history
+- **Like & save** — favorite meals persist locally; browse, remove or clear them in *My Meals*
+- **Calorie estimates** — rough per-serving approximations, summed per meal (toggleable)
+- **Settings** — turn optional ingredient pools on/off, toggle calorie display, reset data
+- **The Diet** — the five slow-carb rules and what's in the pool, built in
+- **PWA** — installable web app; wrapped with **Capacitor** for iOS/Android stores
+
+## Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 16 (App Router, TypeScript) |
+| Styling | Tailwind CSS 4 |
+| Mobile wrapper | Capacitor 8 (static export → native iOS/Android) |
+| Local storage | `localStorage` (WebView-persistent on native) |
+| Motion | `@capacitor/motion` (native) / DeviceMotion API (web) |
+| Haptics | `@capacitor/haptics` |
+| Unit tests | Vitest + React Testing Library |
+| E2E tests | Playwright (mobile viewport) |
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the URL on your phone (same network) or in a desktop browser — tap the pot to simulate a shake.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Next.js dev server |
+| `npm run build` | Static export to `out/` |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Vitest unit tests |
+| `npm run test:e2e` | Playwright e2e (mobile viewport) |
+| `npm run qa` | lint + typecheck + test + build |
+| `npm run mobile` | Build static export + sync to native projects |
+| `npm run mobile:ios` | Open the iOS project in Xcode |
+| `npm run mobile:android` | Open the Android project in Android Studio |
 
-## Learn More
+## Project Layout
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/            # Pages: / (generator), /saved, /settings, /diet
+  components/     # MealCard, BottomNav
+  hooks/          # useShake, useHydrated (SSR-safe storage reads)
+  lib/            # foods (data), randomizer, storage
+tests/e2e/        # Playwright specs
+ios/, android/    # Capacitor native projects (committed)
+docs/             # IDEA, food-data, architecture, deployment
+.agents/          # Agent workflow for GitHub-issue-driven development
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [`docs/IDEA.md`](docs/IDEA.md) — the fleshed-out concept, user stories and product decisions
+- [`docs/food-data.md`](docs/food-data.md) — ingredient pools, calorie sourcing and the data model
+- [`docs/architecture.md`](docs/architecture.md) — how it's built and why (static export, storage, shake)
+- [`docs/deployment.md`](docs/deployment.md) — web, PWA, and App Store / Play Store shipping
 
-## Deploy on Vercel
+## Development Workflow
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Work is tracked in **GitHub Issues** and delivered through the agent pipeline in
+[`.agents/workflow.yml`](.agents/workflow.yml) (mirrors the possiblewords setup): each issue gets an
+isolated git worktree, plan → implementation → review → test → PR, using the
+`implementer`, `reviewer` and `tester` agents.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [`.agents/AGENTS.md`](.agents/AGENTS.md) for the full agent guide, conventions and QA checklist.
+
+## Disclaimer
+
+Slow Carb Randomizer is an idea/meal-planning tool, not medical advice. Calorie figures are rough
+approximations and should not be treated as nutrition facts.
