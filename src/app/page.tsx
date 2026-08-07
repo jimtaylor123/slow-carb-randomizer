@@ -5,6 +5,7 @@ import { FOODS, type Meal, type MealOptions, DEFAULT_MEAL_OPTIONS } from "@/lib/
 import { generateMeal } from "@/lib/randomizer";
 import { shareMeal } from "@/lib/share";
 import * as storage from "@/lib/storage";
+import * as sound from "@/lib/sound";
 import { useShake } from "@/hooks/useShake";
 import { useHydrated } from "@/hooks/useHydrated";
 import MealCard from "@/components/MealCard";
@@ -46,6 +47,7 @@ export default function Generator() {
   const noticeTimerRef = useRef<number | null>(null);
   const noticeTokenRef = useRef(0);
   const sharingRef = useRef(false);
+  const motionPromptedRef = useRef(false);
 
   const flash = useCallback((message: string, duration: number) => {
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
@@ -79,10 +81,34 @@ export default function Generator() {
       history: [meal ? meal.id : "", ...local.history],
     });
     setMeal(next);
+    sound.playPop();
     setLocal({ ...local, history: storage.pushHistory(local.history, next.id) });
   }, [settings, meal, local]);
 
-  const { trigger } = useShake(reroll, mounted);
+  const shakeAndReroll = useCallback(() => {
+    sound.playRattle();
+    reroll();
+  }, [reroll]);
+
+  const { trigger, requestMotionPermission, motionPermissionSupported } = useShake(
+    shakeAndReroll,
+    mounted,
+  );
+
+  const handlePotTap = useCallback(() => {
+    sound.unlock();
+    trigger();
+    if (!motionPermissionSupported || motionPromptedRef.current) return;
+    motionPromptedRef.current = true;
+    void requestMotionPermission()
+      .then((granted) =>
+        flash(
+          granted ? "Motion on — now shake to reroll" : "Motion blocked — tap the pot to roll",
+          2000,
+        ),
+      )
+      .catch(() => flash("Motion blocked — tap the pot to roll", 2000));
+  }, [trigger, flash, requestMotionPermission, motionPermissionSupported]);
 
   const toggleSave = useCallback(() => {
     if (!meal || !local) return;
@@ -140,7 +166,7 @@ export default function Generator() {
           <div className="flex flex-col items-center gap-3">
             <button
               type="button"
-              onClick={trigger}
+              onClick={handlePotTap}
               className="flex h-28 w-28 items-center justify-center rounded-full bg-emerald-500 text-5xl font-black text-zinc-950 shadow-lg shadow-emerald-500/30 transition-transform active:scale-90"
               aria-label="Generate a new meal (or shake your device)"
             >
