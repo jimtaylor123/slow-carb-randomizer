@@ -126,11 +126,12 @@ test("denied motion permission still allows tap-to-roll", async ({ page }) => {
   await expect(pot).toBeVisible();
 
   const before = await page.locator("p.font-medium").allTextContents();
+  const notice = page.getByText(/motion blocked.*tap the pot to roll/i);
   await pot.click();
-  await expect(page.getByText(/motion blocked.*tap the pot to roll/i)).toBeVisible();
+  await expect(notice).toBeVisible();
   await expect.poll(async () => page.locator("p.font-medium").allTextContents()).not.toEqual(before);
 
-  await page.waitForTimeout(1300);
+  await expect(notice).toBeHidden({ timeout: 3000 });
   await pot.click();
   expect(
     await page.evaluate(() => (window as unknown as { __permissionCalls: number }).__permissionCalls),
