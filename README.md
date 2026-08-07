@@ -6,6 +6,26 @@ Built on the **Slow-Carb Diet** (Tim Ferriss, *The 4-Hour Body*): every meal is 
 
 **No backend. No database. No accounts.** All data lives on your device.
 
+## Live App & Offline
+
+Try it live at **https://slowcarbrandomizer.vercel.app**.
+
+The app is a PWA: after your first visit it installs a service worker, so once loaded it works
+fully offline — no connection needed for new shakes or your saved meals.
+
+### Install on iOS (Safari)
+
+1. Open https://slowcarbrandomizer.vercel.app in Safari.
+2. Tap the **Share** button.
+3. Tap **Add to Home Screen**, then **Add**.
+4. Launch from the home screen like any app — it works offline.
+
+### Install on Android (Chrome)
+
+1. Open https://slowcarbrandomizer.vercel.app in Chrome.
+2. Tap the menu (⋮) and choose **Add to Home screen** (or follow the install prompt).
+3. Confirm, then launch from the home screen like any app — it works offline.
+
 ## Features
 
 - **Shake to reroll** — device motion via Capacitor on native, `DeviceMotion` on the web, with a tap-to-roll fallback (works on desktop/simulators)
@@ -15,7 +35,7 @@ Built on the **Slow-Carb Diet** (Tim Ferriss, *The 4-Hour Body*): every meal is 
 - **Calorie estimates** — rough per-serving approximations, summed per meal (toggleable)
 - **Settings** — turn optional ingredient pools on/off, toggle calorie display, reset data
 - **The Diet** — the five slow-carb rules and what's in the pool, built in
-- **PWA** — installable web app; wrapped with **Capacitor** for iOS/Android stores
+- **PWA** — installable and fully offline once visited; wrapped with **Capacitor** for iOS/Android stores
 
 ## Tech Stack
 
@@ -44,7 +64,7 @@ Open the URL on your phone (same network) or in a desktop browser — tap the po
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Next.js dev server |
-| `npm run build` | Static export to `out/` |
+| `npm run build` | Static export to `out/` (includes generating the service worker) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest unit tests |
