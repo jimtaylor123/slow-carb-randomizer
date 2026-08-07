@@ -49,14 +49,20 @@ test("diet page lists the five rules", async ({ page }) => {
 });
 
 test("sharing a meal invokes the web share API with the meal text", async ({ page }) => {
+  interface SharedData {
+    title: string;
+    text: string;
+  }
+
   await page.addInitScript(() => {
+    const win = window as unknown as { __sharedData: unknown };
     const shareImpl = (data: unknown) => {
-      (window as any).__sharedData = data;
+      win.__sharedData = data;
       return Promise.resolve();
     };
     Object.defineProperty(window.navigator, "share", { configurable: true, value: shareImpl });
     Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: shareImpl });
-    (window as any).__sharedData = null;
+    win.__sharedData = null;
   });
 
   await page.goto("/");
@@ -65,10 +71,13 @@ test("sharing a meal invokes the web share API with the meal text", async ({ pag
   const ingredientNames = await page.locator("p.font-medium").allTextContents();
 
   await shareButton.click();
-  await page.waitForFunction(() => (window as any).__sharedData !== null);
+  await page.waitForFunction(
+    () => (window as unknown as { __sharedData: unknown }).__sharedData !== null,
+  );
 
   const data = await page.evaluate(
-    () => (window as any).__sharedData as { title: string; text: string },
+    () =>
+      (window as unknown as { __sharedData: SharedData }).__sharedData as SharedData,
   );
   expect(data.title).toBe("My slow-carb meal");
   expect(data.text).toContain(ingredientNames[0]);
