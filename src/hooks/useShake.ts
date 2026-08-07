@@ -1,12 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Motion } from "@capacitor/motion";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
 const SHAKE_THRESHOLD = 18;
 const MIN_GAP_MS = 1200;
+
+type MotionPermissionState = "granted" | "denied";
+
+function canRequestMotionPermission(): boolean {
+  if (typeof DeviceMotionEvent === "undefined") return false;
+  const ctor = DeviceMotionEvent as unknown as {
+    requestPermission?: () => Promise<MotionPermissionState>;
+  };
+  return typeof ctor?.requestPermission === "function";
+}
 
 async function buzz() {
   try {
@@ -82,15 +92,18 @@ export function useShake(onShake: () => void, enabled = true) {
   }, [enabled, fire]);
 
   const requestMotionPermission = useCallback(async () => {
-    const DeviceMotionEventCtor = DeviceMotionEvent as unknown as {
-      requestPermission?: () => Promise<"granted" | "denied">;
+    if (!canRequestMotionPermission()) return true;
+    const ctor = DeviceMotionEvent as unknown as {
+      requestPermission: () => Promise<MotionPermissionState>;
     };
-    if (typeof DeviceMotionEventCtor?.requestPermission === "function") {
-      const state = await DeviceMotionEventCtor.requestPermission();
-      return state === "granted";
-    }
-    return true;
+    const state = await ctor.requestPermission();
+    return state === "granted";
   }, []);
 
-  return { trigger: fire, requestMotionPermission };
+  const motionPermissionSupported = useMemo(
+    () => !Capacitor.isNativePlatform() && canRequestMotionPermission(),
+    [],
+  );
+
+  return { trigger: fire, requestMotionPermission, motionPermissionSupported };
 }
