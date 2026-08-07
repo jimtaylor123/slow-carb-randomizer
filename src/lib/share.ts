@@ -10,7 +10,7 @@ export interface SharePayload {
 export type ShareOutcome =
   | { method: "share-sheet" }
   | { method: "clipboard" }
-  | { method: "unsupported" };
+  | { method: "unsupported"; text: string };
 
 export function buildSharePayload(
   meal: Meal,
@@ -34,16 +34,24 @@ export async function shareMeal(
       await Share.share({ ...payload, dialogTitle: "Share meal" });
       return { method: "share-sheet" };
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
+      const cancelled =
+        error instanceof Error &&
+        (error.name === "AbortError" || /cancel/i.test(error.message));
+      if (cancelled) {
         return { method: "share-sheet" };
       }
     }
   }
 
+  // The clipboard and unsupported paths are web-only: native canShare() is always true.
+  const clipboard = navigator.clipboard;
+  if (!clipboard?.writeText) {
+    return { method: "unsupported", text: payload.text };
+  }
   try {
-    await navigator.clipboard.writeText(payload.text);
+    await clipboard.writeText(payload.text);
     return { method: "clipboard" };
   } catch {
-    return { method: "unsupported" };
+    return { method: "unsupported", text: payload.text };
   }
 }
