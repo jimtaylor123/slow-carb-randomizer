@@ -90,7 +90,33 @@ test("sharing falls back to a clipboard notice when the share API is missing", a
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, "share", { configurable: true, value: undefined });
+    Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: undefined });
+  });
   await page.goto("/");
   await page.getByRole("button", { name: /share/i }).click();
   await expect(page.getByText(/meal copied to clipboard/i)).toBeVisible();
+});
+
+test("sharing renders the inline text block when share and clipboard both fail", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, "share", { configurable: true, value: undefined });
+    Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: undefined });
+    const clipboard = window.navigator.clipboard;
+    if (clipboard) {
+      Object.defineProperty(clipboard, "writeText", {
+        configurable: true,
+        value: () => Promise.reject(new Error("clipboard blocked")),
+      });
+    }
+  });
+  await page.goto("/");
+  const shareButton = page.getByRole("button", { name: /share/i });
+  await expect(shareButton).toBeVisible();
+  await shareButton.click();
+  await expect(page.getByText(/open the share sheet/i)).toBeVisible();
+  await expect(page.getByText(/from slow carb randomizer/i)).toBeVisible();
 });
