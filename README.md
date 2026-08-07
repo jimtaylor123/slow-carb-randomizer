@@ -64,7 +64,7 @@ Open the URL on your phone (same network) or in a desktop browser — tap the po
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Next.js dev server |
-| `npm run build` | Static export to `out/` (includes generating the service worker) |
+| `npm run build` | Static export to `out/` (ships the runtime service worker) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest unit tests |

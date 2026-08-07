@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local Vercel CLI artifacts:
+    ".vercel/**",
     // Capacitor copies the static export into the native projects:
     "ios/**/public/**",
     "android/**/public/**",

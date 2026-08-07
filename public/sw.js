@@ -1,6 +1,6 @@
 const CACHE_PREFIX = "slowcarb-randomizer";
-const VERSION = "dev";
-const PRECACHE_URLS = [];
+const VERSION = "2";
+const SHELL_URLS = ["/", "/saved", "/settings", "/diet"];
 
 const CACHE_NAME = `${CACHE_PREFIX}-${VERSION}`;
 
@@ -9,7 +9,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) =>
-        Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url).catch(() => {}))),
+        Promise.allSettled(SHELL_URLS.map((url) => cache.add(url).catch(() => {}))),
       )
       .then(() => self.skipWaiting()),
   );
