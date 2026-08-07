@@ -9,6 +9,16 @@ import BottomNav from "@/components/BottomNav";
 
 type ToggleKey = keyof MealOptions;
 
+interface HydratedSettings {
+  settings: MealOptions;
+  sound: boolean;
+}
+
+const DEFAULT_HYDRATED: HydratedSettings = {
+  settings: DEFAULT_MEAL_OPTIONS,
+  sound: true,
+};
+
 const TOGGLES: { key: ToggleKey; label: string; hint: string }[] = [
   {
     key: "includeFermented",
@@ -32,18 +42,61 @@ const TOGGLES: { key: ToggleKey; label: string; hint: string }[] = [
   },
 ];
 
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={checked}
+      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+    >
+      <span>
+        <span className="block text-sm font-medium text-zinc-100">{label}</span>
+        <span className="block text-xs text-zinc-500">{hint}</span>
+      </span>
+      <span
+        aria-hidden
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-emerald-500" : "bg-zinc-700"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+            checked ? "left-[22px]" : "left-0.5"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 export default function Settings() {
-  const [hydratedSettings, mounted] = useHydrated(
-    () => storage.loadSettings(),
-    DEFAULT_MEAL_OPTIONS,
+  const [hydrated, mounted] = useHydrated(
+    () => ({ settings: storage.loadSettings(), sound: storage.loadSoundEnabled() }),
+    DEFAULT_HYDRATED,
   );
   const [settings, setSettings] = useState<MealOptions | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean | null>(null);
 
   if (mounted && settings === null) {
-    setSettings(hydratedSettings);
+    setSettings(hydrated.settings);
+  }
+  if (mounted && soundEnabled === null) {
+    setSoundEnabled(hydrated.sound);
   }
 
   const current = settings ?? DEFAULT_MEAL_OPTIONS;
+  const soundOn = soundEnabled ?? true;
 
   const update = (key: ToggleKey) => {
     setSettings((value) => {
@@ -54,9 +107,18 @@ export default function Settings() {
     });
   };
 
+  const toggleSound = () => {
+    setSoundEnabled((value) => {
+      const next = !(value ?? true);
+      storage.saveSoundEnabled(next);
+      return next;
+    });
+  };
+
   const resetData = () => {
     storage.clearAllData();
     setSettings(DEFAULT_MEAL_OPTIONS);
+    setSoundEnabled(true);
   };
 
   return (
@@ -73,34 +135,30 @@ export default function Settings() {
           ) : (
             <div className="divide-y divide-zinc-800 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
               {TOGGLES.map((toggle) => (
-                <button
+                <ToggleRow
                   key={toggle.key}
-                  type="button"
-                  onClick={() => update(toggle.key)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                >
-                  <span>
-                    <span className="block text-sm font-medium text-zinc-100">
-                      {toggle.label}
-                    </span>
-                    <span className="block text-xs text-zinc-500">{toggle.hint}</span>
-                  </span>
-                  <span
-                    aria-hidden
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                      current[toggle.key] ? "bg-emerald-500" : "bg-zinc-700"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
-                        current[toggle.key] ? "left-[22px]" : "left-0.5"
-                      }`}
-                    />
-                  </span>
-                </button>
+                  label={toggle.label}
+                  hint={toggle.hint}
+                  checked={current[toggle.key]}
+                  onToggle={() => update(toggle.key)}
+                />
               ))}
             </div>
           )}
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Feedback
+          </h2>
+          <div className="divide-y divide-zinc-800 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <ToggleRow
+              label="Sound effects"
+              hint="Rattle on shake, pop on new meals"
+              checked={soundOn}
+              onToggle={toggleSound}
+            />
+          </div>
         </section>
 
         <section className="space-y-2">
