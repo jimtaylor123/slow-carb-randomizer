@@ -150,3 +150,16 @@ test.describe("short viewport", () => {
     await expect(page.getByRole("button", { name: /share/i })).toBeInViewport();
   });
 });
+
+test.describe("very short viewport", () => {
+  test.use({ viewport: { width: 390, height: 650 } });
+
+  test("pot, like/save and share fit without scrolling", async ({ page }) => {
+    await page.goto("/");
+    const pot = page.getByLabel(/generate a new meal/i);
+    await expect(pot).toBeVisible();
+    await expect(pot).toBeInViewport();
+    await expect(page.getByRole("button", { name: /like & save/i })).toBeInViewport();
+    await expect(page.getByRole("button", { name: /share/i })).toBeInViewport();
+  });
+});

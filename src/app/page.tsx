@@ -141,7 +141,7 @@ export default function Generator() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-zinc-950 text-zinc-100">
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-4 pt-4">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold tracking-tight">
@@ -156,7 +156,7 @@ export default function Generator() {
           )}
         </header>
 
-        <section className="flex flex-1 flex-col items-center justify-center gap-4">
+        <section className="flex flex-1 flex-col items-center justify-start gap-3">
           {!mounted || !meal ? (
             <div className="h-64 w-full animate-pulse rounded-2xl bg-zinc-900" />
           ) : (

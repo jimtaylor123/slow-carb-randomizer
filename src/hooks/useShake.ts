@@ -4,9 +4,12 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Motion } from "@capacitor/motion";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { createShakeDetector } from "@/lib/shakeDetector";
 
 const SHAKE_THRESHOLD = 18;
-const MIN_GAP_MS = 1200;
+const SHAKE_GAP_MS = 1800;
+const SETTLE_SAMPLES = 4;
+const TAP_GAP_MS = 1200;
 
 type MotionPermissionState = "granted" | "denied";
 
@@ -35,20 +38,34 @@ async function buzz() {
  *
  * Returns a manual `trigger` so a tap-to-shake button works everywhere
  * (desktop, simulators, devices without motion sensors).
+ *
+ * Motion samples are debounced by a settle-based detector so a single physical
+ * shake fires once; `trigger` keeps its own smaller gap so tapping is not
+ * throttled by the shake debounce.
  */
 export function useShake(onShake: () => void, enabled = true) {
   const callbackRef = useRef(onShake);
-  const lastTriggerRef = useRef(0);
+  const lastTapRef = useRef(0);
   const listeningRef = useRef(false);
 
   useEffect(() => {
     callbackRef.current = onShake;
   }, [onShake]);
 
-  const fire = useCallback(() => {
+  const detect = useMemo(
+    () =>
+      createShakeDetector({
+        threshold: SHAKE_THRESHOLD,
+        minGapMs: SHAKE_GAP_MS,
+        settleSamples: SETTLE_SAMPLES,
+      }),
+    [],
+  );
+
+  const trigger = useCallback(() => {
     const now = Date.now();
-    if (now - lastTriggerRef.current < MIN_GAP_MS) return;
-    lastTriggerRef.current = now;
+    if (now - lastTapRef.current < TAP_GAP_MS) return;
+    lastTapRef.current = now;
     void buzz();
     callbackRef.current();
   }, []);
@@ -59,12 +76,17 @@ export function useShake(onShake: () => void, enabled = true) {
 
     const isNative = Capacitor.isNativePlatform();
 
+    const handleMotion = (magnitude: number) => {
+      if (!detect(magnitude)) return;
+      void buzz();
+      callbackRef.current();
+    };
+
     const setupWeb = () => {
       const handler = (event: DeviceMotionEvent) => {
         const acc = event.accelerationIncludingGravity;
         if (!acc?.x || !acc.y || !acc.z) return;
-        const magnitude = Math.hypot(acc.x, acc.y, acc.z);
-        if (magnitude > SHAKE_THRESHOLD) fire();
+        handleMotion(Math.hypot(acc.x, acc.y, acc.z));
       };
       window.addEventListener("devicemotion", handler);
       listeningRef.current = true;
@@ -76,8 +98,7 @@ export function useShake(onShake: () => void, enabled = true) {
       void Motion.addListener("accel", (event) => {
         const acc = event.accelerationIncludingGravity;
         if (!acc) return;
-        const magnitude = Math.hypot(acc.x, acc.y, acc.z);
-        if (magnitude > SHAKE_THRESHOLD) fire();
+        handleMotion(Math.hypot(acc.x, acc.y, acc.z));
       });
       listeningRef.current = true;
       cleanup = () => {
@@ -89,7 +110,7 @@ export function useShake(onShake: () => void, enabled = true) {
     }
 
     return cleanup;
-  }, [enabled, fire]);
+  }, [enabled, detect]);
 
   const requestMotionPermission = useCallback(async () => {
     if (!canRequestMotionPermission()) return true;
@@ -105,5 +126,5 @@ export function useShake(onShake: () => void, enabled = true) {
     [],
   );
 
-  return { trigger: fire, requestMotionPermission, motionPermissionSupported };
+  return { trigger, requestMotionPermission, motionPermissionSupported };
 }

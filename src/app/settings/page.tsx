@@ -123,7 +123,7 @@ export default function Settings() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-zinc-950 text-zinc-100">
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-8 pt-6">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
         <h1 className="text-xl font-bold tracking-tight">Settings</h1>
 
         <section className="space-y-2">

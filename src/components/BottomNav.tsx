@@ -15,7 +15,7 @@ export default function BottomNav({ savedCount }: { savedCount: number }) {
 
   return (
     <nav className="sticky bottom-0 z-10 border-t border-zinc-800 bg-zinc-950/90 backdrop-blur">
-      <ul className="mx-auto flex w-full max-w-md items-stretch justify-around">
+      <ul className="mx-auto flex w-full max-w-md items-stretch justify-around pb-[env(safe-area-inset-bottom)]">
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
           return (
