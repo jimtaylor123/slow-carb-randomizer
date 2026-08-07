@@ -15,7 +15,7 @@ function Row({
   if (!item) return null;
   return (
     <div
-      className={`flex items-start gap-3 rounded-xl border px-3 py-2 ${
+      className={`flex items-start gap-3 rounded-xl border px-3 py-1.5 ${
         optional
           ? "border-dashed border-zinc-700 bg-zinc-900/40"
           : "border-zinc-800 bg-zinc-900"
@@ -30,7 +30,7 @@ function Row({
           {CATEGORY_LABELS[item.category]}
           {optional ? " · optional" : ""}
         </p>
-        <p className="mt-0.5 text-xs text-zinc-400">
+        <p className="text-xs text-zinc-400">
           {item.serving}
           {item.note ? ` · ${item.note}` : ""}
         </p>
@@ -52,7 +52,7 @@ export default function MealCard({
   showCalories: boolean;
 }) {
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-1.5">
       <Row item={meal.protein} showCalories={showCalories} />
       <Row item={meal.legume} showCalories={showCalories} />
       <Row item={meal.vegetable} showCalories={showCalories} />

@@ -47,7 +47,7 @@ export default function Saved() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-zinc-950 text-zinc-100">
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-8 pt-6">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)]">
         <header className="flex items-center justify-between">
           <h1 className="text-xl font-bold tracking-tight">My Meals</h1>
           {mounted && meals.length > 0 && (
