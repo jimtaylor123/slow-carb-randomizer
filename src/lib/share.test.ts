@@ -62,7 +62,7 @@ describe("buildSharePayload", () => {
 describe("shareMeal", () => {
   it("uses the native share sheet when available", async () => {
     canShareMock.mockResolvedValue({ value: true });
-    shareMock.mockResolvedValue(undefined);
+    shareMock.mockResolvedValue({});
 
     const outcome = await shareMeal(meal, { showCalories: true });
 
