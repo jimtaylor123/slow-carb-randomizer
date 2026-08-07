@@ -47,3 +47,76 @@ test("diet page lists the five rules", async ({ page }) => {
   await expect(page.getByText(/rule 1/i)).toBeVisible();
   await expect(page.getByText(/rule 5/i)).toBeVisible();
 });
+
+test("sharing a meal invokes the web share API with the meal text", async ({ page }) => {
+  interface SharedData {
+    title: string;
+    text: string;
+  }
+
+  await page.addInitScript(() => {
+    const win = window as unknown as { __sharedData: unknown };
+    const shareImpl = (data: unknown) => {
+      win.__sharedData = data;
+      return Promise.resolve();
+    };
+    Object.defineProperty(window.navigator, "share", { configurable: true, value: shareImpl });
+    Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: shareImpl });
+    win.__sharedData = null;
+  });
+
+  await page.goto("/");
+  const shareButton = page.getByRole("button", { name: /share/i });
+  await expect(shareButton).toBeVisible();
+  const ingredientNames = await page.locator("p.font-medium").allTextContents();
+
+  await shareButton.click();
+  await page.waitForFunction(
+    () => (window as unknown as { __sharedData: unknown }).__sharedData !== null,
+  );
+
+  const data = await page.evaluate(
+    () =>
+      (window as unknown as { __sharedData: SharedData }).__sharedData as SharedData,
+  );
+  expect(data.title).toBe("My slow-carb meal");
+  expect(data.text).toContain(ingredientNames[0]);
+  expect(data.text).toContain(ingredientNames[1]);
+  expect(data.text).toContain("From Slow Carb Randomizer");
+});
+
+test("sharing falls back to a clipboard notice when the share API is missing", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, "share", { configurable: true, value: undefined });
+    Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: undefined });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: /share/i }).click();
+  await expect(page.getByText(/meal copied to clipboard/i)).toBeVisible();
+});
+
+test("sharing renders the inline text block when share and clipboard both fail", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, "share", { configurable: true, value: undefined });
+    Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: undefined });
+    const clipboard = window.navigator.clipboard;
+    if (clipboard) {
+      Object.defineProperty(clipboard, "writeText", {
+        configurable: true,
+        value: () => Promise.reject(new Error("clipboard blocked")),
+      });
+    }
+  });
+  await page.goto("/");
+  const shareButton = page.getByRole("button", { name: /share/i });
+  await expect(shareButton).toBeVisible();
+  await shareButton.click();
+  await expect(page.getByText(/open the share sheet/i)).toBeVisible();
+  await expect(page.getByText(/from slow carb randomizer/i)).toBeVisible();
+});

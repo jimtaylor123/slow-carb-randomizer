@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FOODS, type Meal, type MealOptions, DEFAULT_MEAL_OPTIONS } from "@/lib/foods";
 import { generateMeal } from "@/lib/randomizer";
+import { shareMeal } from "@/lib/share";
 import * as storage from "@/lib/storage";
 import { useShake } from "@/hooks/useShake";
 import { useHydrated } from "@/hooks/useHydrated";
@@ -38,7 +39,23 @@ export default function Generator() {
 
   const [local, setLocal] = useState<LocalState | null>(null);
   const [meal, setMeal] = useState<Meal | null>(null);
-  const [savedFlash, setSavedFlash] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [unsupportedText, setUnsupportedText] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const noticeTimerRef = useRef<number | null>(null);
+  const noticeTokenRef = useRef(0);
+  const sharingRef = useRef(false);
+
+  const flash = useCallback((message: string, duration: number) => {
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    const token = noticeTokenRef.current + 1;
+    noticeTokenRef.current = token;
+    setNotice(message);
+    noticeTimerRef.current = window.setTimeout(() => {
+      if (noticeTokenRef.current === token) setNotice(null);
+    }, duration);
+  }, []);
 
   // Populate local state once the real stored values are available.
   if (mounted && local === null) {
@@ -72,9 +89,26 @@ export default function Generator() {
     const next = storage.toggleSavedMeal(local.saved, meal);
     storage.saveSavedMeals(next);
     setLocal({ ...local, saved: next });
-    setSavedFlash(true);
-    window.setTimeout(() => setSavedFlash(false), 800);
-  }, [meal, local]);
+    flash("Saved to your meals 💚", 800);
+  }, [meal, local, flash]);
+
+  const share = useCallback(async () => {
+    if (!meal || sharingRef.current) return;
+    sharingRef.current = true;
+    setSharing(true);
+    setUnsupportedText(null);
+    try {
+      const outcome = await shareMeal(meal, { showCalories: settings.showCalories });
+      if (outcome.method === "clipboard") {
+        flash("Meal copied to clipboard 💚", 2000);
+      } else if (outcome.method === "unsupported") {
+        setUnsupportedText(outcome.text);
+      }
+    } finally {
+      sharingRef.current = false;
+      setSharing(false);
+    }
+  }, [meal, settings.showCalories, flash]);
 
   const savedIds = savedMeals.map((m) => m.id);
   const isSaved = meal !== null && savedIds.includes(meal.id);
@@ -118,25 +152,46 @@ export default function Generator() {
           </div>
 
           {mounted && meal && (
-            <button
-              type="button"
-              onClick={toggleSave}
-              className={`flex w-full max-w-xs items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
-                isSaved
-                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-                  : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700"
-              }`}
-            >
-              {isSaved ? "Saved" : "Like & save"}
-              <span aria-hidden>{isSaved ? "❤️" : "🤍"}</span>
-            </button>
+            <div className="flex w-full max-w-xs items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSave}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  isSaved
+                    ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                    : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700"
+                }`}
+              >
+                {isSaved ? "Saved" : "Like & save"}
+                <span aria-hidden>{isSaved ? "❤️" : "🤍"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={share}
+                disabled={sharing}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Share this meal"
+              >
+                Share
+                <span aria-hidden>📤</span>
+              </button>
+            </div>
+          )}
+
+          {unsupportedText && (
+            <div className="w-full max-w-xs rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+              <p className="mb-2 text-xs text-zinc-400">
+                Your browser can&rsquo;t open the share sheet — copy the text below:
+              </p>
+              <p className="select-all whitespace-pre-wrap text-sm text-zinc-100">
+                {unsupportedText}
+              </p>
+            </div>
           )}
         </section>
 
-        {savedFlash && (
-          <p className="text-center text-xs text-emerald-400">
-            Saved to your meals 💚
-          </p>
+        {notice && (
+          <p className="text-center text-xs text-emerald-400">{notice}</p>
         )}
       </main>
 
