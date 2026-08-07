@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FOODS, type Meal, type MealOptions, DEFAULT_MEAL_OPTIONS } from "@/lib/foods";
 import { generateMeal } from "@/lib/randomizer";
-import { buildSharePayload, shareMeal } from "@/lib/share";
+import { shareMeal } from "@/lib/share";
 import * as storage from "@/lib/storage";
 import { useShake } from "@/hooks/useShake";
 import { useHydrated } from "@/hooks/useHydrated";
@@ -41,6 +41,21 @@ export default function Generator() {
   const [meal, setMeal] = useState<Meal | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [unsupportedText, setUnsupportedText] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const noticeTimerRef = useRef<number | null>(null);
+  const noticeTokenRef = useRef(0);
+  const sharingRef = useRef(false);
+
+  const flash = useCallback((message: string, duration: number) => {
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    const token = noticeTokenRef.current + 1;
+    noticeTokenRef.current = token;
+    setNotice(message);
+    noticeTimerRef.current = window.setTimeout(() => {
+      if (noticeTokenRef.current === token) setNotice(null);
+    }, duration);
+  }, []);
 
   // Populate local state once the real stored values are available.
   if (mounted && local === null) {
@@ -74,23 +89,26 @@ export default function Generator() {
     const next = storage.toggleSavedMeal(local.saved, meal);
     storage.saveSavedMeals(next);
     setLocal({ ...local, saved: next });
-    setNotice("Saved to your meals 💚");
-    window.setTimeout(() => setNotice(null), 800);
-  }, [meal, local]);
+    flash("Saved to your meals 💚", 800);
+  }, [meal, local, flash]);
 
   const share = useCallback(async () => {
-    if (!meal) return;
+    if (!meal || sharingRef.current) return;
+    sharingRef.current = true;
+    setSharing(true);
     setUnsupportedText(null);
-    const outcome = await shareMeal(meal, { showCalories: settings.showCalories });
-    if (outcome.method === "clipboard") {
-      setNotice("Meal copied to clipboard 💚");
-      window.setTimeout(() => setNotice(null), 2000);
-    } else if (outcome.method === "unsupported") {
-      setUnsupportedText(
-        buildSharePayload(meal, { showCalories: settings.showCalories }).text,
-      );
+    try {
+      const outcome = await shareMeal(meal, { showCalories: settings.showCalories });
+      if (outcome.method === "clipboard") {
+        flash("Meal copied to clipboard 💚", 2000);
+      } else if (outcome.method === "unsupported") {
+        setUnsupportedText(outcome.text);
+      }
+    } finally {
+      sharingRef.current = false;
+      setSharing(false);
     }
-  }, [meal, settings.showCalories]);
+  }, [meal, settings.showCalories, flash]);
 
   const savedIds = savedMeals.map((m) => m.id);
   const isSaved = meal !== null && savedIds.includes(meal.id);
@@ -150,7 +168,8 @@ export default function Generator() {
               <button
                 type="button"
                 onClick={share}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700"
+                disabled={sharing}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label="Share this meal"
               >
                 Share
