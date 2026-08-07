@@ -15,7 +15,7 @@ function Row({
   if (!item) return null;
   return (
     <div
-      className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${
+      className={`flex items-start gap-3 rounded-xl border px-3 py-2 ${
         optional
           ? "border-dashed border-zinc-700 bg-zinc-900/40"
           : "border-zinc-800 bg-zinc-900"

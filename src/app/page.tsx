@@ -5,6 +5,7 @@ import { FOODS, type Meal, type MealOptions, DEFAULT_MEAL_OPTIONS } from "@/lib/
 import { generateMeal } from "@/lib/randomizer";
 import { shareMeal } from "@/lib/share";
 import * as storage from "@/lib/storage";
+import * as sound from "@/lib/sound";
 import { useShake } from "@/hooks/useShake";
 import { useHydrated } from "@/hooks/useHydrated";
 import MealCard from "@/components/MealCard";
@@ -46,6 +47,7 @@ export default function Generator() {
   const noticeTimerRef = useRef<number | null>(null);
   const noticeTokenRef = useRef(0);
   const sharingRef = useRef(false);
+  const motionPromptedRef = useRef(false);
 
   const flash = useCallback((message: string, duration: number) => {
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
@@ -79,10 +81,34 @@ export default function Generator() {
       history: [meal ? meal.id : "", ...local.history],
     });
     setMeal(next);
+    sound.playPop();
     setLocal({ ...local, history: storage.pushHistory(local.history, next.id) });
   }, [settings, meal, local]);
 
-  const { trigger } = useShake(reroll, mounted);
+  const shakeAndReroll = useCallback(() => {
+    sound.playRattle();
+    reroll();
+  }, [reroll]);
+
+  const { trigger, requestMotionPermission, motionPermissionSupported } = useShake(
+    shakeAndReroll,
+    mounted,
+  );
+
+  const handlePotTap = useCallback(() => {
+    sound.unlock();
+    trigger();
+    if (!motionPermissionSupported || motionPromptedRef.current) return;
+    motionPromptedRef.current = true;
+    void requestMotionPermission()
+      .then((granted) =>
+        flash(
+          granted ? "Motion on — now shake to reroll" : "Motion blocked — tap the pot to roll",
+          2000,
+        ),
+      )
+      .catch(() => flash("Motion blocked — tap the pot to roll", 2000));
+  }, [trigger, flash, requestMotionPermission, motionPermissionSupported]);
 
   const toggleSave = useCallback(() => {
     if (!meal || !local) return;
@@ -115,7 +141,7 @@ export default function Generator() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-zinc-950 text-zinc-100">
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pb-8 pt-6">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-4 pt-4">
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold tracking-tight">
@@ -130,18 +156,18 @@ export default function Generator() {
           )}
         </header>
 
-        <section className="flex flex-1 flex-col items-center justify-center gap-6">
+        <section className="flex flex-1 flex-col items-center justify-center gap-4">
           {!mounted || !meal ? (
             <div className="h-64 w-full animate-pulse rounded-2xl bg-zinc-900" />
           ) : (
             <MealCard meal={meal} showCalories={settings.showCalories} />
           )}
 
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <button
               type="button"
-              onClick={trigger}
-              className="flex h-28 w-28 items-center justify-center rounded-full bg-emerald-500 text-5xl font-black text-zinc-950 shadow-lg shadow-emerald-500/30 transition-transform active:scale-90"
+              onClick={handlePotTap}
+              className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-4xl font-black text-zinc-950 shadow-lg shadow-emerald-500/30 transition-transform active:scale-90"
               aria-label="Generate a new meal (or shake your device)"
             >
               🍲
@@ -156,7 +182,7 @@ export default function Generator() {
               <button
                 type="button"
                 onClick={toggleSave}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
                   isSaved
                     ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
                     : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700"
@@ -169,7 +195,7 @@ export default function Generator() {
                 type="button"
                 onClick={share}
                 disabled={sharing}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label="Share this meal"
               >
                 Share
