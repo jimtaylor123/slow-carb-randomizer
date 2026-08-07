@@ -1,9 +1,10 @@
 # Deployment
 
-The app is a Next.js **static export** (`out/`) that can be hosted anywhere, installed as a PWA,
-or wrapped with **Capacitor 8** and shipped to the App Store and Google Play.
+The app is a Next.js **static export** (`out/`) that can be hosted on any **root-served** static
+host, installed as a PWA, or wrapped with **Capacitor 8** and shipped to the App Store and Google
+Play.
 
-## 1. Web (any static host)
+## 1. Web (root-served static host)
 
 ```bash
 npm run build    # writes out/ and generates out/sw.js
@@ -13,9 +14,17 @@ The build has two steps: `next build` writes the static export to `out/`, then
 `node scripts/build-sw.mjs` enumerates every file in `out/` and injects the precache list plus a
 version hash into `out/sw.js` (the source template lives in `public/sw.js` and is copied into
 `out/` by Next). Any change to the app or its assets produces a new cache name, so updates roll out
-automatically and old caches are purged on activation — no manual version bumps.
+automatically and old caches are purged on activation — no manual version bumps. (The hash covers
+the package version + precache URL list, and each `next build` embeds a fresh build-id, so even an
+unchanged app yields a new cache name per build — harmless, only one cache is kept. A logic-only
+change to `public/sw.js` with identical assets reuses the cache name; that's fine because the
+hashed asset URLs change every build.)
 
-Host `out/` on Vercel, Netlify, Cloudflare Pages, GitHub Pages, S3 + CloudFront, etc. The result
+The PWA must be served from a **domain root**. The service worker and every precache URL use
+root-absolute paths (`register("/sw.js")`, `/...`), so sub-path hosting — e.g. a GitHub Pages
+*project* page at `user.github.io/repo/` — makes `/sw.js` 404 and silently breaks offline caching;
+the app still serves but is not an offline PWA. Host `out/` on a root path instead: Vercel, Netlify,
+Cloudflare Pages, user-site GitHub Pages (`user.github.io`), S3 + CloudFront, etc. The result
 is a fully offline-capable PWA (manifest + icons are in `public/`). On the live site
 (https://slowcarbrandomizer.vercel.app) the service worker only registers in production builds, so
 `next dev` and e2e runs are unaffected.
@@ -56,6 +65,9 @@ signing) are version-controlled. Build artifacts are gitignored.
   backgroundColor: "#09090b",
 }
 ```
+
+Service worker registration is skipped inside Capacitor WebViews
+(`Capacitor.isNativePlatform()`), so the native bundles never install the web PWA's service worker.
 
 ### iOS: TestFlight → App Store
 
