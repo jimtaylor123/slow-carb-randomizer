@@ -32,6 +32,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# agent scratch (worktree-local, not part of PRs)
+/.agents/browser_logs.md
+/.agents/notes.md
+/.agents/plan.md
+/.agents/port.txt
+/.agents/todo.md
+
 # env files (can opt-in for committing if needed)
 .env*
 

@@ -6,10 +6,12 @@ import {
   loadHistory,
   loadSavedMeals,
   loadSettings,
+  loadSoundEnabled,
   pushHistory,
   saveHistory,
   saveSavedMeals,
   saveSettings,
+  saveSoundEnabled,
   toggleSavedMeal,
 } from "./storage";
 
@@ -79,10 +81,23 @@ describe("storage", () => {
     saveSavedMeals([sampleMeal("a")]);
     saveSettings(defaultSettings);
     saveHistory(["meal-1"]);
+    saveSoundEnabled(false);
     clearAllData();
     expect(loadSavedMeals()).toEqual([]);
     expect(loadSettings()).toEqual(defaultSettings);
     expect(loadHistory()).toEqual([]);
+    expect(loadSoundEnabled()).toBe(true);
+  });
+
+  it("sound enabled defaults to true", () => {
+    expect(loadSoundEnabled()).toBe(true);
+  });
+
+  it("saves and loads the sound enabled flag", () => {
+    saveSoundEnabled(false);
+    expect(loadSoundEnabled()).toBe(false);
+    saveSoundEnabled(true);
+    expect(loadSoundEnabled()).toBe(true);
   });
 
   it("is safe before hydration (no window)", () => {
@@ -90,6 +105,7 @@ describe("storage", () => {
     Object.defineProperty(globalThis, "window", { value: undefined, configurable: true });
     expect(loadSavedMeals()).toEqual([]);
     expect(loadSettings()).toEqual(defaultSettings);
+    expect(loadSoundEnabled()).toBe(true);
     Object.defineProperty(globalThis, "window", { value: originalWindow, configurable: true });
   });
 });

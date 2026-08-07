@@ -5,6 +5,7 @@ const KEYS = {
   saved: "scr:saved",
   settings: "scr:settings",
   history: "scr:history",
+  sound: "scr:sound",
 } as const;
 
 const HISTORY_LIMIT = 20;
@@ -64,6 +65,14 @@ export function saveHistory(ids: string[]): void {
   write(KEYS.history, ids.slice(0, HISTORY_LIMIT));
 }
 
+export function loadSoundEnabled(): boolean {
+  return read<boolean>(KEYS.sound) ?? true;
+}
+
+export function saveSoundEnabled(enabled: boolean): void {
+  write(KEYS.sound, enabled);
+}
+
 export function pushHistory(ids: string[], mealId: string): string[] {
   const next = [mealId, ...ids.filter((id) => id !== mealId)].slice(0, HISTORY_LIMIT);
   saveHistory(next);
@@ -76,6 +85,7 @@ export function clearAllData(): void {
     window.localStorage.removeItem(KEYS.saved);
     window.localStorage.removeItem(KEYS.settings);
     window.localStorage.removeItem(KEYS.history);
+    window.localStorage.removeItem(KEYS.sound);
   } catch {
     // ignore
   }
