@@ -25,6 +25,16 @@ export function unlock(): void {
   getCtx();
 }
 
+if (typeof window !== "undefined") {
+  const onUserGesture = () => {
+    unlock();
+    window.removeEventListener("pointerdown", onUserGesture);
+    window.removeEventListener("keydown", onUserGesture);
+  };
+  window.addEventListener("pointerdown", onUserGesture, { passive: true });
+  window.addEventListener("keydown", onUserGesture, { passive: true });
+}
+
 export function playRattle(): void {
   const audioCtx = getCtx();
   if (!audioCtx) return;
