@@ -78,4 +78,28 @@ describe("createShakeDetector", () => {
     [250, 300, 350, 400].forEach((t) => fire(detect, 9, t));
     expect(fire(detect, 30, 2000)).toBe(true);
   });
+
+  it("ramp-up motion from rest fires once it exceeds threshold", () => {
+    const detect = makeDetector();
+    // Rest samples around gravity
+    expect(fire(detect, 9.8, 0)).toBe(false);
+    expect(fire(detect, 10.2, 50)).toBe(false);
+    // Acceleration ramping up through mid-range values
+    expect(fire(detect, 12.0, 100)).toBe(false);
+    expect(fire(detect, 15.5, 150)).toBe(false);
+    // Peak exceeding threshold
+    expect(fire(detect, 22.0, 200)).toBe(true);
+    // Subsequent samples during same shake do not re-fire
+    expect(fire(detect, 25.0, 250)).toBe(false);
+    expect(fire(detect, 19.0, 300)).toBe(false);
+  });
+
+  it("fires on spike after gap even if spike is the first sample after gap expires", () => {
+    const detect = makeDetector();
+    expect(fire(detect, 30, 0)).toBe(true);
+    // Settles immediately
+    [100, 150, 200, 250].forEach((t) => fire(detect, 9, t));
+    // No samples until 2000ms, then a direct shake spike
+    expect(fire(detect, 30, 2000)).toBe(true);
+  });
 });

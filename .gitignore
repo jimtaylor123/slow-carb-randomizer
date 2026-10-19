@@ -37,6 +37,7 @@ yarn-error.log*
 /.agents/notes.md
 /.agents/plan.md
 /.agents/port.txt
+/.agents/review.md
 /.agents/todo.md
 
 # env files (can opt-in for committing if needed)

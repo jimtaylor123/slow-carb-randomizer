@@ -47,6 +47,7 @@ export default function Generator() {
   const noticeTimerRef = useRef<number | null>(null);
   const noticeTokenRef = useRef(0);
   const sharingRef = useRef(false);
+  const [motionPrompted, setMotionPrompted] = useState(false);
   const motionPromptedRef = useRef(false);
 
   const flash = useCallback((message: string, duration: number) => {
@@ -100,6 +101,7 @@ export default function Generator() {
     trigger();
     if (!motionPermissionSupported || motionPromptedRef.current) return;
     motionPromptedRef.current = true;
+    setMotionPrompted(true);
     void requestMotionPermission()
       .then((granted) =>
         flash(
@@ -173,7 +175,9 @@ export default function Generator() {
               🍲
             </button>
             <p className="text-xs text-zinc-500">
-              Shake your device or tap the pot to reroll
+              {mounted && motionPermissionSupported && !motionPrompted
+                ? "Tap the pot to enable shake & reroll"
+                : "Shake your device or tap the pot to reroll"}
             </p>
           </div>
 

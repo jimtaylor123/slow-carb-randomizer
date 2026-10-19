@@ -1,19 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-function motionPermissionInitScript(state: "granted" | "denied") {
-  return () => {
-    const win = window as unknown as { __permissionCalls: number };
-    win.__permissionCalls = 0;
-    if (typeof DeviceMotionEvent !== "undefined") {
-      Object.defineProperty(DeviceMotionEvent, "requestPermission", {
-        configurable: true,
-        value: () => {
-          win.__permissionCalls += 1;
-          return Promise.resolve(state);
-        },
-      });
-    }
-  };
+function initMotionPermission(state: string) {
+  const win = window as unknown as { __permissionCalls: number };
+  win.__permissionCalls = 0;
+  if (typeof DeviceMotionEvent !== "undefined") {
+    Object.defineProperty(DeviceMotionEvent, "requestPermission", {
+      configurable: true,
+      value: () => {
+        win.__permissionCalls += 1;
+        return Promise.resolve(state);
+      },
+    });
+  }
 }
 
 test("sound effects toggle persists", async ({ page }) => {
@@ -95,6 +93,7 @@ test("first pot tap grants motion permission once and unlocks audio", async ({ p
   await page.goto("/");
   const pot = page.getByLabel(/generate a new meal/i);
   await expect(pot).toBeVisible();
+  await expect(page.getByText("Tap the pot to enable shake & reroll")).toBeVisible();
 
   expect(
     await page.evaluate(() => (window as unknown as { __audioContexts: number }).__audioContexts),
@@ -105,6 +104,7 @@ test("first pot tap grants motion permission once and unlocks audio", async ({ p
 
   await pot.click();
   await expect(page.getByText(/motion on.*shake to reroll/i)).toBeVisible();
+  await expect(page.getByText("Shake your device or tap the pot to reroll")).toBeVisible();
   expect(
     await page.evaluate(() => (window as unknown as { __audioContexts: number }).__audioContexts),
   ).toBeGreaterThanOrEqual(1);
@@ -118,8 +118,29 @@ test("first pot tap grants motion permission once and unlocks audio", async ({ p
   ).toBe(1);
 });
 
+test("physical shake event rerolls the meal after permission granted", async ({ page }) => {
+  await page.addInitScript(initMotionPermission, "granted");
+
+  await page.goto("/");
+  const pot = page.getByLabel(/generate a new meal/i);
+  await pot.click();
+  await expect(page.getByText(/motion on.*shake to reroll/i)).toBeVisible();
+
+  const before = await page.locator("p.font-medium").allTextContents();
+
+  await page.evaluate(() => {
+    const event = new Event("devicemotion");
+    Object.defineProperty(event, "accelerationIncludingGravity", {
+      value: { x: 25, y: 0, z: 0 },
+    });
+    window.dispatchEvent(event);
+  });
+
+  await expect.poll(async () => page.locator("p.font-medium").allTextContents()).not.toEqual(before);
+});
+
 test("denied motion permission still allows tap-to-roll", async ({ page }) => {
-  await page.addInitScript(motionPermissionInitScript("denied"));
+  await page.addInitScript(initMotionPermission, "denied");
 
   await page.goto("/");
   const pot = page.getByLabel(/generate a new meal/i);
