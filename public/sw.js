@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "slowcarb-randomizer";
-const VERSION = "2";
+const VERSION = "3";
 const SHELL_URLS = ["/", "/saved", "/settings", "/diet"];
 
 const CACHE_NAME = `${CACHE_PREFIX}-${VERSION}`;
