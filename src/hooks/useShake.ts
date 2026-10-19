@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Motion } from "@capacitor/motion";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { createShakeDetector } from "@/lib/shakeDetector";
 
 const SHAKE_THRESHOLD = 18;
+const SETTLE_THRESHOLD = 12;
 const SHAKE_GAP_MS = 1800;
 const SETTLE_SAMPLES = 4;
 const TAP_GAP_MS = 1200;
@@ -47,6 +48,7 @@ export function useShake(onShake: () => void, enabled = true) {
   const callbackRef = useRef(onShake);
   const lastTapRef = useRef(0);
   const listeningRef = useRef(false);
+  const [listenerTick, setListenerTick] = useState(0);
 
   useEffect(() => {
     callbackRef.current = onShake;
@@ -56,6 +58,7 @@ export function useShake(onShake: () => void, enabled = true) {
     () =>
       createShakeDetector({
         threshold: SHAKE_THRESHOLD,
+        settleThreshold: SETTLE_THRESHOLD,
         minGapMs: SHAKE_GAP_MS,
         settleSamples: SETTLE_SAMPLES,
       }),
@@ -85,12 +88,15 @@ export function useShake(onShake: () => void, enabled = true) {
     const setupWeb = () => {
       const handler = (event: DeviceMotionEvent) => {
         const acc = event.accelerationIncludingGravity;
-        if (!acc?.x || !acc.y || !acc.z) return;
+        if (acc?.x == null || acc?.y == null || acc?.z == null) return;
         handleMotion(Math.hypot(acc.x, acc.y, acc.z));
       };
       window.addEventListener("devicemotion", handler);
       listeningRef.current = true;
-      return () => window.removeEventListener("devicemotion", handler);
+      return () => {
+        window.removeEventListener("devicemotion", handler);
+        listeningRef.current = false;
+      };
     };
 
     let cleanup: () => void = () => {};
@@ -110,7 +116,7 @@ export function useShake(onShake: () => void, enabled = true) {
     }
 
     return cleanup;
-  }, [enabled, detect]);
+  }, [enabled, detect, listenerTick]);
 
   const requestMotionPermission = useCallback(async () => {
     if (!canRequestMotionPermission()) return true;
@@ -118,7 +124,11 @@ export function useShake(onShake: () => void, enabled = true) {
       requestPermission: () => Promise<MotionPermissionState>;
     };
     const state = await ctor.requestPermission();
-    return state === "granted";
+    const granted = state === "granted";
+    if (granted && !Capacitor.isNativePlatform() && typeof window !== "undefined") {
+      setListenerTick((t) => t + 1);
+    }
+    return granted;
   }, []);
 
   const motionPermissionSupported = useMemo(
